@@ -1,5 +1,6 @@
 package dev.khaled.aroundegypt.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,8 +22,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,6 +35,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,7 +54,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import dev.khaled.aroundegypt.MainViewModel
-import dev.khaled.aroundegypt.data.model.Sight
+import dev.khaled.aroundegypt.data.remote.model.Experience
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,10 +63,39 @@ fun HomeScreen(
     onNavigateToExperience: (String) -> Unit,
     viewModel: MainViewModel
 ) {
-    var searchQuery by remember { mutableStateOf("") }
 
-    val recommendedSights = viewModel.recommendedSights
-    val recentSights = viewModel.mostRecentSights
+    val recommendedExperiences by viewModel.recommendedExperiences.collectAsState()
+    val recentExperiences by viewModel.recentExperiences.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val isOffline by viewModel.isOffline.collectAsState()
+    val error by viewModel.error.collectAsState()
+
+    var searchQuery by remember { mutableStateOf("") }
+    var debouncedSearchQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(searchQuery) {
+        delay(300)
+        debouncedSearchQuery = searchQuery
+    }
+
+    LaunchedEffect(debouncedSearchQuery) {
+        if (debouncedSearchQuery.isNotBlank()) {
+            viewModel.searchExperiences(debouncedSearchQuery)
+        }
+    }
+
+    val filteredExperiences by remember(debouncedSearchQuery, searchResults) {
+        derivedStateOf {
+            if (debouncedSearchQuery.isBlank()) {
+                emptyList()
+            } else {
+                searchResults
+            }
+        }
+    }
+
+    val isSearchActive = debouncedSearchQuery.isNotBlank()
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -71,8 +106,7 @@ fun HomeScreen(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     placeholder = { Text("Try Luxor", color = Color.Gray) },
-                    modifier = Modifier
-                        .fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     leadingIcon = {
                         Icon(
                             Icons.Default.Search,
@@ -86,74 +120,165 @@ fun HomeScreen(
                         focusedContainerColor = Color(0xFFF5F5F5),
                         unfocusedContainerColor = Color(0xFFF5F5F5)
                     ),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    singleLine = true
                 )
             },
             navigationIcon = {
                 Icon(Icons.Default.Menu, contentDescription = "Menu")
             },
             actions = {
-                Icon(Icons.Default.MoreVert, contentDescription = "More")
+                IconButton(
+                    onClick = { viewModel.loadExperiences() },
+                    enabled = !isLoading
+                ) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = "Refresh",
+                        tint = if (isLoading) Color.Gray else Color.Black
+                    )
+                }
             },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.White
             )
         )
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().background(Color.White),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            // Recommended Experiences Section
-            item {
+        if (isOffline) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Gray)
+                    .padding(12.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    text = "Recommended Experiences",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = "You're currently offline. Showing cached data.",
+                    color = Color.Black,
+                    fontSize = 14.sp
                 )
             }
+        }
 
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(recommendedSights) { sight ->
-                        SightCard(
-                            sight = sight,
-                            onClick = { onNavigateToExperience(sight.id) },
-                            onLikeClick = { viewModel.toggleLike(sight.id) },
-                            width = Modifier.width(280.dp)
+        if (isSearchActive) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (filteredExperiences.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "No experiences found for '${debouncedSearchQuery}'",
+                                fontSize = 16.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                } else {
+                    items(filteredExperiences) { experience ->
+                        ExperienceCard(
+                            experience = experience,
+                            onClick = { onNavigateToExperience(experience.id) },
+                            onLikeClick = { viewModel.toggleLike(experience) }
                         )
                     }
                 }
             }
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    // Recommended Experiences Section
+                    item {
+                        Text(
+                            text = "Recommended Experiences",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
-            // Most Recent Section
-            item {
-                Text(
-                    text = "Most Recent",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
+                    item {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(recommendedExperiences) { experience ->
+                                ExperienceCard(
+                                    experience = experience,
+                                    onClick = { onNavigateToExperience(experience.id) },
+                                    onLikeClick = { viewModel.toggleLike(experience) },
+                                    width = Modifier.width(280.dp)
+                                )
+                            }
+                        }
+                    }
 
-            items(recentSights) { sight ->
-                SightCard(
-                    sight = sight,
-                    onClick = { onNavigateToExperience(sight.id) },
-                    onLikeClick = { viewModel.toggleLike(sight.id) }
-                )
+                    // Most Recent Section
+                    item {
+                        Text(
+                            text = "Most Recent",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    items(recentExperiences) { experience ->
+                        ExperienceCard(
+                            experience = experience,
+                            onClick = { onNavigateToExperience(experience.id) },
+                            onLikeClick = { viewModel.toggleLike(experience) }
+                        )
+                    }
+                }
+
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White.copy(alpha = 0.8f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+                    }
+                }
+
+                if(error != null){
+                    Toast.makeText(LocalContext.current, error, Toast.LENGTH_SHORT).show()
+                    viewModel.clearError()
+                }
             }
         }
     }
 }
 
 @Composable
-fun SightCard(
-    sight: Sight,
+fun ExperienceCard(
+    experience: Experience,
     onClick: () -> Unit,
     onLikeClick: () -> Unit,
     width: Modifier = Modifier.fillMaxWidth()
@@ -170,10 +295,10 @@ fun SightCard(
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(sight.imageUrl)
+                    .data(experience.imageUrl)
                     .crossfade(true)
                     .build(),
-                contentDescription = sight.name,
+                contentDescription = experience.title,
                 modifier = Modifier
                     .align(Alignment.Center)
                     .fillMaxSize(),
@@ -189,7 +314,7 @@ fun SightCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = sight.name,
+                text = experience.title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
@@ -201,7 +326,7 @@ fun SightCard(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "${sight.likesCount}",
+                    text = "${experience.likesCount}",
                     fontSize = 14.sp
                 )
 
@@ -210,7 +335,7 @@ fun SightCard(
                     modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
-                        if (sight.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        if (experience.isLiked == true) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Like",
                         tint = Color(0xFFF18757),
                         modifier = Modifier.size(20.dp)

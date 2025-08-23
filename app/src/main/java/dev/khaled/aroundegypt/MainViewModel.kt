@@ -1,135 +1,188 @@
 package dev.khaled.aroundegypt
 
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import dev.khaled.aroundegypt.data.model.Sight
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.khaled.aroundegypt.data.local.util.NetworkState
+import dev.khaled.aroundegypt.data.local.util.NetworkUtils
+import dev.khaled.aroundegypt.data.remote.model.Experience
+import dev.khaled.aroundegypt.data.remote.usecases.GetExperienceByIdUseCase
+import dev.khaled.aroundegypt.data.remote.usecases.GetRecentExperiencesUseCase
+import dev.khaled.aroundegypt.data.remote.usecases.GetRecommendedExperiencesUseCase
+import dev.khaled.aroundegypt.data.remote.usecases.LikeExperienceUseCase
+import dev.khaled.aroundegypt.data.remote.usecases.SearchExperiencesUseCase
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class MainViewModel {
+@HiltViewModel
+class MainViewModel @Inject constructor(
+    private val getRecommendedExperiencesUseCase: GetRecommendedExperiencesUseCase,
+    private val getRecentExperiencesUseCase: GetRecentExperiencesUseCase,
+    private val searchExperiencesUseCase: SearchExperiencesUseCase,
+    private val getExperienceByIdUseCase: GetExperienceByIdUseCase,
+    private val likeExperienceUseCase: LikeExperienceUseCase,
+    private val networkUtils: NetworkUtils
+) : ViewModel() {
 
-    private val _recommendedSights = mutableStateListOf<Sight>()
-    val recommendedSights: List<Sight> get() = _recommendedSights
-    
-    private val _mostRecentSights = mutableStateListOf<Sight>()
-    val mostRecentSights: List<Sight> get() = _mostRecentSights
+    private val _recommendedExperiences = MutableStateFlow<List<Experience>>(emptyList())
+    val recommendedExperiences: StateFlow<List<Experience>> = _recommendedExperiences.asStateFlow()
 
-    private val _sights = mutableStateListOf<Sight>()
-    val sights: List<Sight> get() = _sights
-    
-    private val _selectedSightId = mutableStateOf<String?>(null)
-    val selectedSightId: State<String?> = _selectedSightId
-    
+    private val _recentExperiences = MutableStateFlow<List<Experience>>(emptyList())
+    val recentExperiences: StateFlow<List<Experience>> = _recentExperiences.asStateFlow()
+
+    private val _selectedExperience = MutableStateFlow<Experience?>(null)
+    val selectedExperience: StateFlow<Experience?> = _selectedExperience.asStateFlow()
+
+    private val _searchResults = MutableStateFlow<List<Experience>>(emptyList())
+    val searchResults: StateFlow<List<Experience>> = _searchResults.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    private val _isOffline = MutableStateFlow(false)
+    val isOffline: StateFlow<Boolean> = _isOffline.asStateFlow()
+
     init {
-        loadDummySights()
+        observeNetworkState()
+        loadExperiences()
     }
-    
-    private fun loadDummySights() {
-        val sights = listOf(
-            Sight(
-                id = "1",
-                name = "Luxor",
-                imageUrl = "https://i.postimg.cc/zXqPF7v1/Screenshot-3.png",
-                likesCount = 128,
-                description = "Great luxor.",
-                isLiked = false
-            ),
-            Sight(
-                id = "2",
-                name = "Luxor",
-                imageUrl = "https://i.postimg.cc/zXqPF7v1/Screenshot-3.png",
-                likesCount = 128,
-                description = "Great luxor.",
-                isLiked = false
-            ),
-            Sight(
-                id = "3",
-                name = "Luxor",
-                imageUrl = "https://i.postimg.cc/zXqPF7v1/Screenshot-3.png",
-                likesCount = 128,
-                description = "Great luxor.",
-                isLiked = false
-            ),
-            Sight(
-                id = "4",
-                name = "Luxor",
-                imageUrl = "https://i.postimg.cc/zXqPF7v1/Screenshot-3.png",
-                likesCount = 128,
-                description = "Great luxor.",
-                isLiked = false
-            ),
-            Sight(
-                id = "5",
-                name = "Luxor",
-                imageUrl = "https://i.postimg.cc/zXqPF7v1/Screenshot-3.png",
-                likesCount = 128,
-                description = "Great luxor.",
-                isLiked = false
-            ),
-            Sight(
-                id = "6",
-                name = "Luxor",
-                imageUrl = "https://i.postimg.cc/zXqPF7v1/Screenshot-3.png",
-                likesCount = 128,
-                description = "Great luxor.",
-                isLiked = false
-            )
-        )
-        
-        _sights.addAll(sights)
-        
-        // Set recommended sights (first 3)
-        _recommendedSights.addAll(sights.take(3))
-        
-        // Set most recent sights (next 3)
-        _mostRecentSights.addAll(sights.take(6).drop(3))
-    }
-    
-    fun toggleLike(sightId: String) {
-        val index = _sights.indexOfFirst { it.id == sightId }
-        if (index != -1) {
-            val sight = _sights[index]
 
-            if (!sight.isLiked) {
-                val updatedSight = sight.copy(
-                    isLiked = !sight.isLiked,
-                    likesCount = sight.likesCount + 1
+    private fun observeNetworkState() {
+        networkUtils.observeNetworkState()
+            .onEach { state ->
+                _isOffline.value = state is NetworkState.Disconnected
+            }
+            .launchIn(viewModelScope)
+    }
+
+    fun loadExperiences() {
+        getRecommendedExperiencesUseCase()
+            .onStart { _isLoading.value = true }
+            .onEach { experiences ->
+                _recommendedExperiences.value = experiences
+                _error.value = null
+            }
+            .catch { exception ->
+                _error.value = "Failed to load recommended experiences: ${exception.message}"
+            }
+            .launchIn(viewModelScope)
+
+        getRecentExperiencesUseCase()
+            .onStart { _isLoading.value = true }
+            .onEach { experiences ->
+                _recentExperiences.value = experiences
+                _error.value = null
+            }
+            .catch { exception ->
+                _error.value = "Failed to load recent experiences: ${exception.message}"
+            }
+            .launchIn(viewModelScope)
+
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(100)
+            _isLoading.value = false
+        }
+    }
+
+    fun searchExperiences(query: String) {
+        if (query.isBlank()) {
+            _searchResults.value = emptyList()
+            _error.value = null
+            return
+        }
+
+        _isLoading.value = true
+        _error.value = null
+
+        searchExperiencesUseCase(query)
+            .onEach { experiences ->
+                _searchResults.value = experiences
+                _error.value = null
+            }
+            .catch { exception ->
+                _error.value = "Search failed: ${exception.message}"
+                _searchResults.value = emptyList()
+            }
+            .launchIn(viewModelScope)
+
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(100)
+            _isLoading.value = false
+        }
+    }
+
+    fun toggleLike(experience: Experience) {
+        if (experience.isLiked != true) {
+            likeExperienceUseCase(experience.id)
+                .onEach { likesCount ->
+                    updateExperienceLikeStatus(experience.id, likesCount)
+                }
+                .catch { exception ->
+                    _error.value = "Failed to like experience: ${exception.message}"
+                }
+                .launchIn(viewModelScope)
+        }
+    }
+
+    private fun updateExperienceLikeStatus(experienceId: String, likesCount: Int) {
+        _selectedExperience.value?.let { experience ->
+            if (experience.id == experienceId) {
+                _selectedExperience.value = experience.copy(
+                    isLiked = true,
+                    likesCount = likesCount
                 )
+            }
+        }
 
-                val newSights = _sights.toMutableList()
-                newSights[index] = updatedSight
-                _sights.clear()
-                _sights.addAll(newSights)
+        _recommendedExperiences.value = _recommendedExperiences.value.map { experience ->
+            if (experience.id == experienceId) {
+                experience.copy(isLiked = true, likesCount = likesCount)
+            } else {
+                experience
+            }
+        }
 
-                val recommendedIndex = _recommendedSights.indexOfFirst { it.id == sightId }
-                if (recommendedIndex != -1) {
-                    val newRecommended = _recommendedSights.toMutableList()
-                    newRecommended[recommendedIndex] = updatedSight
-                    _recommendedSights.clear()
-                    _recommendedSights.addAll(newRecommended)
-                }
-
-                val recentIndex = _mostRecentSights.indexOfFirst { it.id == sightId }
-                if (recentIndex != -1) {
-                    val newRecent = _mostRecentSights.toMutableList()
-                    newRecent[recentIndex] = updatedSight
-                    _mostRecentSights.clear()
-                    _mostRecentSights.addAll(newRecent)
-                }
+        _recentExperiences.value = _recentExperiences.value.map { experience ->
+            if (experience.id == experienceId) {
+                experience.copy(isLiked = true, likesCount = likesCount)
+            } else {
+                experience
             }
         }
     }
 
-    fun selectSight(sightId: String?) {
-        _selectedSightId.value = sightId
+    fun selectExperience(experienceId: String?) {
+        if (experienceId == null) {
+            _selectedExperience.value = null
+            return
+        }
+
+        getExperienceByIdUseCase(experienceId)
+            .onEach { experience ->
+                _selectedExperience.value = experience
+                _error.value = null
+            }
+            .catch { exception ->
+                _error.value = "Failed to load experience details: ${exception.message}"
+            }
+            .launchIn(viewModelScope)
     }
-    
-    fun getSightById(sightId: String): Sight? {
-        return _sights.find { it.id == sightId }
-    }
-    
+
     fun clearSelection() {
-        _selectedSightId.value = null
+        _selectedExperience.value = null
+    }
+
+    fun clearError() {
+        _error.value = null
     }
 }

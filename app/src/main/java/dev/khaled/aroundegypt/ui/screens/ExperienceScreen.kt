@@ -1,5 +1,6 @@
 package dev.khaled.aroundegypt.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,15 +42,16 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import dev.khaled.aroundegypt.MainViewModel
+import dev.khaled.aroundegypt.data.remote.model.Experience
 
 @ExperimentalMaterial3Api
 @Composable
 fun ExperienceScreen(
-    sightId: String,
+    experience: Experience,
     onNavigateBack: () -> Unit,
     viewModel: MainViewModel
 ) {
-    val sight = viewModel.getSightById(sightId) ?: return
+    val error by viewModel.error.collectAsState()
 
     Dialog(
         onDismissRequest = onNavigateBack,
@@ -72,9 +76,9 @@ fun ExperienceScreen(
                 ) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(sight.imageUrl)
+                            .data(experience.imageUrl)
                             .build(),
-                        contentDescription = sight.name,
+                        contentDescription = experience.title,
                         modifier = Modifier
                             .align(Alignment.Center)
                             .fillMaxSize(),
@@ -104,7 +108,7 @@ fun ExperienceScreen(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(
-                                    text = sight.name,
+                                    text = experience.title,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.Black
@@ -123,12 +127,12 @@ fun ExperienceScreen(
                             ) {
                                 IconButton(
                                     onClick = {
-                                        viewModel.toggleLike(sight.id)
+                                        viewModel.toggleLike(experience)
                                     },
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
-                                        if (sight.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        if (experience.isLiked == true) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                         contentDescription = "Like",
                                         tint = Color(0xFFF18757),
                                         modifier = Modifier.size(24.dp)
@@ -136,7 +140,7 @@ fun ExperienceScreen(
                                 }
 
                                 Text(
-                                    text = "${sight.likesCount}",
+                                    text = "${experience.likesCount}",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -165,7 +169,7 @@ fun ExperienceScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = sight.description,
+                            text = experience.description,
                             fontSize = 14.sp,
                             lineHeight = 17.sp,
                             color = Color.Black
@@ -173,6 +177,11 @@ fun ExperienceScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
                     }
+                }
+
+                if(error != null){
+                    Toast.makeText(LocalContext.current, error, Toast.LENGTH_SHORT).show()
+                    viewModel.clearError()
                 }
             }
         }
