@@ -1,4 +1,4 @@
-package dev.khaled.aroundegypt.data.model
+package dev.khaled.aroundegypt.domain.model
 
 import com.google.gson.annotations.SerializedName
 

@@ -1,8 +1,8 @@
-package dev.khaled.aroundegypt.data.service
+package dev.khaled.aroundegypt.data.remote.service
 
-import dev.khaled.aroundegypt.data.model.ExperienceResponse
-import dev.khaled.aroundegypt.data.model.LikeResponse
-import dev.khaled.aroundegypt.data.model.SingleExperienceResponse
+import dev.khaled.aroundegypt.data.remote.model.ExperienceResponse
+import dev.khaled.aroundegypt.data.remote.model.LikeResponse
+import dev.khaled.aroundegypt.data.remote.model.SingleExperienceResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.POST

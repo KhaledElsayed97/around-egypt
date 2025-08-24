@@ -1,7 +1,7 @@
-package dev.khaled.aroundegypt.data.usecases
+package dev.khaled.aroundegypt.domain.usecases
 
-import dev.khaled.aroundegypt.data.model.Experience
-import dev.khaled.aroundegypt.data.repository.ExperienceRepository
+import dev.khaled.aroundegypt.domain.model.Experience
+import dev.khaled.aroundegypt.domain.repository.ExperienceRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
@@ -12,3 +12,4 @@ class GetExperienceByIdUseCase @Inject constructor(
         return repository.getExperienceById(id)
     }
 }
+

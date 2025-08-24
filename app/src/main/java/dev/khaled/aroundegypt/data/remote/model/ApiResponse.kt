@@ -1,6 +1,7 @@
-package dev.khaled.aroundegypt.data.model
+package dev.khaled.aroundegypt.data.remote.model
 
 import com.google.gson.annotations.SerializedName
+import dev.khaled.aroundegypt.domain.model.Experience
 
 data class ExperienceResponse(
     @SerializedName("data")

@@ -75,7 +75,8 @@ dependencies {
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
-    
-    // Coil for image loading
     implementation(libs.coil.compose)
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    kapt(libs.room.compiler)
 }

@@ -1,6 +1,6 @@
-package dev.khaled.aroundegypt.data.repository
+package dev.khaled.aroundegypt.domain.repository
 
-import dev.khaled.aroundegypt.data.model.Experience
+import dev.khaled.aroundegypt.domain.model.Experience
 import kotlinx.coroutines.flow.Flow
 
 interface ExperienceRepository {

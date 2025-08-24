@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -54,7 +55,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import dev.khaled.aroundegypt.MainViewModel
-import dev.khaled.aroundegypt.data.remote.model.Experience
+import dev.khaled.aroundegypt.domain.model.Experience
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -113,6 +114,16 @@ fun HomeScreen(
                             contentDescription = "Search",
                             tint = Color.Gray
                         )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotBlank()) {
+                            Icon(
+                                Icons.Default.Clear,
+                                contentDescription = "Clear search",
+                                tint = Color.Gray,
+                                modifier = Modifier.clickable { searchQuery = "" }
+                            )
+                        }
                     },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Transparent,

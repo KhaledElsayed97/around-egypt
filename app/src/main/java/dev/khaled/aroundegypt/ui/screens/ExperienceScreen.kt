@@ -42,7 +42,7 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import dev.khaled.aroundegypt.MainViewModel
-import dev.khaled.aroundegypt.data.remote.model.Experience
+import dev.khaled.aroundegypt.domain.model.Experience
 
 @ExperimentalMaterial3Api
 @Composable
