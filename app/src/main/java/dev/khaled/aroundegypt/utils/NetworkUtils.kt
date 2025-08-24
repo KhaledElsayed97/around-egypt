@@ -14,19 +14,19 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class NetworkUtils @Inject constructor(
+open class NetworkUtils @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     
     private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-    fun isNetworkAvailable(): Boolean {
+    open fun isNetworkAvailable(): Boolean {
         val network = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
-    fun observeNetworkState(): Flow<NetworkState> = callbackFlow {
+    open fun observeNetworkState(): Flow<NetworkState> = callbackFlow {
         val networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 trySend(NetworkState.Connected)

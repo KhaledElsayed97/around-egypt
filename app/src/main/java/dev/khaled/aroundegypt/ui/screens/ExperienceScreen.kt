@@ -41,15 +41,15 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import dev.khaled.aroundegypt.MainViewModel
 import dev.khaled.aroundegypt.domain.model.Experience
+import dev.khaled.aroundegypt.MainViewModelContract
 
 @ExperimentalMaterial3Api
 @Composable
 fun ExperienceScreen(
     experience: Experience,
     onNavigateBack: () -> Unit,
-    viewModel: MainViewModel
+    viewModel: MainViewModelContract
 ) {
     val error by viewModel.error.collectAsState()
 

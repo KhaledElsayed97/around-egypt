@@ -29,28 +29,28 @@ class MainViewModel @Inject constructor(
     private val getExperienceByIdUseCase: GetExperienceByIdUseCase,
     private val likeExperienceUseCase: LikeExperienceUseCase,
     private val networkUtils: NetworkUtils
-) : ViewModel() {
+) : ViewModel(), MainViewModelContract {
 
     private val _recommendedExperiences = MutableStateFlow<List<Experience>>(emptyList())
-    val recommendedExperiences: StateFlow<List<Experience>> = _recommendedExperiences.asStateFlow()
+    override val recommendedExperiences: StateFlow<List<Experience>> = _recommendedExperiences.asStateFlow()
 
     private val _recentExperiences = MutableStateFlow<List<Experience>>(emptyList())
-    val recentExperiences: StateFlow<List<Experience>> = _recentExperiences.asStateFlow()
+    override val recentExperiences: StateFlow<List<Experience>> = _recentExperiences.asStateFlow()
 
     private val _selectedExperience = MutableStateFlow<Experience?>(null)
-    val selectedExperience: StateFlow<Experience?> = _selectedExperience.asStateFlow()
+    override val selectedExperience: StateFlow<Experience?> = _selectedExperience.asStateFlow()
 
     private val _searchResults = MutableStateFlow<List<Experience>>(emptyList())
-    val searchResults: StateFlow<List<Experience>> = _searchResults.asStateFlow()
+    override val searchResults: StateFlow<List<Experience>> = _searchResults.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    override val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    override val error: StateFlow<String?> = _error.asStateFlow()
 
     private val _isOffline = MutableStateFlow(false)
-    val isOffline: StateFlow<Boolean> = _isOffline.asStateFlow()
+    override val isOffline: StateFlow<Boolean> = _isOffline.asStateFlow()
 
     init {
         observeNetworkState()
@@ -65,7 +65,7 @@ class MainViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    fun loadExperiences() {
+    override fun loadExperiences() {
         getRecommendedExperiencesUseCase()
             .onStart { _isLoading.value = true }
             .onEach { experiences ->
@@ -94,7 +94,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun searchExperiences(query: String) {
+    override fun searchExperiences(query: String) {
         if (query.isBlank()) {
             _searchResults.value = emptyList()
             _error.value = null
@@ -121,7 +121,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun toggleLike(experience: Experience) {
+    override fun toggleLike(experience: Experience) {
         if (experience.isLiked != true) {
             likeExperienceUseCase(experience.id)
                 .onEach { likesCount ->
@@ -161,7 +161,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun selectExperience(experienceId: String?) {
+    override fun selectExperience(experienceId: String?) {
         if (experienceId == null) {
             _selectedExperience.value = null
             return
@@ -182,7 +182,7 @@ class MainViewModel @Inject constructor(
         _selectedExperience.value = null
     }
 
-    fun clearError() {
+    override fun clearError() {
         _error.value = null
     }
 }

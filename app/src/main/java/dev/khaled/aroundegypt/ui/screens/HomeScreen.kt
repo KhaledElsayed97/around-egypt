@@ -54,15 +54,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import dev.khaled.aroundegypt.MainViewModel
 import dev.khaled.aroundegypt.domain.model.Experience
+import dev.khaled.aroundegypt.MainViewModelContract
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToExperience: (String) -> Unit,
-    viewModel: MainViewModel
+    viewModel: MainViewModelContract
 ) {
 
     val recommendedExperiences by viewModel.recommendedExperiences.collectAsState()
